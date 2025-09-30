@@ -43,13 +43,14 @@ class ContactController extends Controller
                 return redirect()->route('contact.create')->with('error', 'Email service is not configured. Please set up your mail credentials in the .env file.');
             }
 
-            // Check if admin email is not set or empty
-            if (empty(env('MAIL_ADMIN'))) {
+            // Check if admin email is configured or empty
+            $adminEmail = config('mail.admin');
+            if (empty($adminEmail)) {
                 return redirect()->route('contact.create')->with('error', 'Admin email is not configured. Please set MAIL_ADMIN in your .env file.');
             }
 
             //If Everything is fine then send email
-            Mail::to(env('MAIL_ADMIN'))->send(new ContactMail($contact));
+            Mail::to($adminEmail)->send(new ContactMail($contact));
 
             return redirect()->route('contact.create')->with('success', 'Thank you for reaching out to us. We’ve received your details and our team will get back to you as soon as possible.');
         } catch (\Exception $e) {
