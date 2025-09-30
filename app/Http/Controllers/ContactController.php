@@ -6,9 +6,22 @@ use Illuminate\Http\Request;
 use App\Models\Contact;
 use App\Mail\ContactMail;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 
 class ContactController extends Controller
 {
+    private int $max_submissions_allowed;
+    private int $time_threshold; // in minutes
+    
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->max_submissions_allowed = 5; // max 5 submissions
+        $this->time_threshold = 60;         // 60 minutes (1 hour)
+    }
+
     /**
      * Show the contact form.
      */
@@ -22,6 +35,14 @@ class ContactController extends Controller
      */
     public function store(Request $request)
     {
+        $ip = $request->ip();
+        if (RateLimiter::tooManyAttempts($ip, $this->max_submissions_allowed)) {
+            return redirect()
+                ->route('contact.create')
+                ->with('error', "You have reached the maximum number of {$this->max_submissions_allowed} submissions allowed per {$this->time_threshold} minutes. Please try again later.");
+        }
+        RateLimiter::hit($ip, $this->time_threshold * 60);
+
         $validated = $request->validate([
             'name'    => 'required|string|max:100',
             'email'   => 'required|email',
