@@ -29,7 +29,7 @@ class ContactController extends Controller
             'message' => 'required|string|max:2000',
         ]);
 
-        Contact::create([
+        $contact = Contact::create([
             'name'    => $validated['name'],
             'email'   => $validated['email'],
             'subject' => $validated['subject'],
@@ -37,6 +37,23 @@ class ContactController extends Controller
             'ip'      => $request->ip(),
         ]);
 
-        return redirect()->route('contact.create')->with('success', 'Your message has been Received by Our Company. We will get back Soon.');
+        try {
+            // Check if mail is not configured or empty
+            if (empty(config('mail.mailers.smtp.host')) || empty(config('mail.from.address'))) {
+                return redirect()->route('contact.create')->with('error', 'Email service is not configured. Please set up your mail credentials in the .env file.');
+            }
+
+            // Check if admin email is not set or empty
+            if (empty(env('MAIL_ADMIN'))) {
+                return redirect()->route('contact.create')->with('error', 'Admin email is not configured. Please set MAIL_ADMIN in your .env file.');
+            }
+
+            //If Everything is fine then send email
+            Mail::to(env('MAIL_ADMIN'))->send(new ContactMail($contact));
+
+            return redirect()->route('contact.create')->with('success', 'Thank you for reaching out to us. We’ve received your details and our team will get back to you as soon as possible.');
+        } catch (\Exception $e) {
+            return redirect()->route('contact.create')->with('error', 'An unexpected error occurred while sending your message. Please try again later.');
+        }
     }
 }
